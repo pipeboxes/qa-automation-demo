@@ -1,0 +1,15 @@
+# Regresión: un contacto sin teléfono debe poder guardarse igualmente.
+appId: ${APP_ID}
+tags:
+  - regression
+---
+- runFlow: ../../subflows/abrir_app.yaml
+- runFlow:
+    file: ../../subflows/llenar_contacto.yaml
+    env:
+      FIRST_NAME: ${CONTACT_FIRST_NAME}
+      LAST_NAME: ${CONTACT_LAST_NAME + ' SinTel'}
+      PHONE: ""
+- assertVisible: "${CONTACT_FIRST_NAME} ${CONTACT_LAST_NAME} SinTel"
+- assertNotVisible: "Mobile|Móvil"
+- takeScreenshot: contacto_sin_telefono

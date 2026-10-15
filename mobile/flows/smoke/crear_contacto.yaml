@@ -1,0 +1,15 @@
+# Smoke: crear un contacto con nombre, apellido y teléfono.
+appId: ${APP_ID}
+tags:
+  - smoke
+---
+- runFlow: ../../subflows/abrir_app.yaml
+- runFlow:
+    file: ../../subflows/llenar_contacto.yaml
+    env:
+      FIRST_NAME: ${CONTACT_FIRST_NAME}
+      LAST_NAME: ${CONTACT_LAST_NAME}
+      PHONE: ${CONTACT_PHONE}
+- assertVisible: "${CONTACT_FIRST_NAME} ${CONTACT_LAST_NAME}"
+- assertVisible: ".*${CONTACT_PHONE.slice(-4)}.*"
+- takeScreenshot: contacto_creado

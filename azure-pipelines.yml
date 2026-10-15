@@ -1,0 +1,123 @@
+trigger:
+  branches:
+    include:
+      - main
+      - master
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  NODE_VERSION: '20.x'
+  API_BASE_URL: 'https://jsonplaceholder.typicode.com'
+
+stages:
+  - stage: API
+    displayName: 'Pruebas de API (Playwright)'
+    jobs:
+      - job: playwright
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(NODE_VERSION)
+            displayName: 'Instalar Node.js'
+
+          - script: npm ci || npm install
+            workingDirectory: api
+            displayName: 'Instalar dependencias'
+
+          - script: npx playwright test
+            workingDirectory: api
+            displayName: 'Ejecutar pruebas de API'
+            env:
+              CI: 'true'
+              API_BASE_URL: $(API_BASE_URL)
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: 'api/test-results/junit.xml'
+              testRunTitle: 'API - Playwright'
+            displayName: 'Publicar resultados'
+
+          - task: PublishPipelineArtifact@1
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: 'api/playwright-report'
+              artifact: 'playwright-report'
+            displayName: 'Publicar reporte HTML'
+
+  - stage: Performance
+    displayName: 'Smoke de carga (k6)'
+    dependsOn: API
+    jobs:
+      - job: k6
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - script: |
+              sudo gpg -k
+              sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+              echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+              sudo apt-get update
+              sudo apt-get install -y k6
+            displayName: 'Instalar k6'
+
+          - script: |
+              mkdir -p performance/results
+              k6 run -e BASE_URL=$(API_BASE_URL) --summary-export performance/results/summary.json performance/smoke-load.js
+            displayName: 'Ejecutar smoke de carga'
+
+          - task: PublishPipelineArtifact@1
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: 'performance/results'
+              artifact: 'k6-results'
+            displayName: 'Publicar resultados k6'
+
+  # Las pruebas móviles requieren un emulador Android; macOS tiene aceleración
+  # por hardware en los agentes hospedados. Se ejecutan solo en la rama main.
+  - stage: Mobile
+    displayName: 'Pruebas móviles (Maestro)'
+    dependsOn: []
+    condition: and(succeeded(), eq(variables['Build.SourceBranchName'], 'main'))
+    jobs:
+      - job: maestro
+        pool:
+          vmImage: 'macOS-latest'
+        timeoutInMinutes: 45
+        steps:
+          - script: |
+              curl -Ls "https://get.maestro.mobile.dev" | bash
+              echo "##vso[task.prependpath]$HOME/.maestro/bin"
+            displayName: 'Instalar Maestro'
+
+          - script: |
+              echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "system-images;android-34;google_apis;x86_64"
+              echo "no" | $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -n ci_avd -k "system-images;android-34;google_apis;x86_64" --force
+              nohup $ANDROID_HOME/emulator/emulator -avd ci_avd -no-window -no-audio -no-snapshot -gpu swiftshader_indirect > /dev/null 2>&1 &
+              $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 2; done'
+            displayName: 'Levantar emulador Android'
+
+          - script: |
+              mkdir -p mobile/report
+              maestro test mobile/flows \
+                -e APP_ID=com.google.android.contacts \
+                -e CONTACT_FIRST_NAME=Juan \
+                -e CONTACT_LAST_NAME=Perez \
+                -e CONTACT_PHONE=+56912345678 \
+                --format junit --output mobile/report/junit.xml
+            displayName: 'Ejecutar flujos Maestro'
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: 'mobile/report/junit.xml'
+              testRunTitle: 'Mobile - Maestro'
+            displayName: 'Publicar resultados'

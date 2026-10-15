@@ -1,0 +1,18 @@
+# Subflujo: completa y guarda el formulario de nuevo contacto.
+# Parámetros: FIRST_NAME, LAST_NAME, PHONE (si PHONE va vacío, no se completa).
+appId: ${APP_ID}
+---
+- tapOn:
+    id: "${APP_ID}:id/floating_action_button"
+- tapOn: "First name|Nombre"
+- inputText: ${FIRST_NAME}
+- tapOn: "Last name|Apellido"
+- inputText: ${LAST_NAME}
+- runFlow:
+    when:
+      true: ${PHONE != ''}
+    commands:
+      - tapOn: "Phone|Teléfono"
+      - inputText: ${PHONE}
+- hideKeyboard
+- tapOn: "Save|Guardar"

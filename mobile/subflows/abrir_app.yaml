@@ -1,0 +1,15 @@
+# Subflujo: abre la app de Contactos desde un estado limpio.
+appId: ${APP_ID}
+---
+- launchApp:
+    appId: ${APP_ID}
+    clearState: true
+    stopApp: true
+# Algunas versiones muestran un diálogo de cuenta/permisos al primer inicio.
+- runFlow:
+    when:
+      visible: "Skip|Omitir|Allow|Permitir"
+    commands:
+      - tapOn: "Skip|Omitir|Allow|Permitir"
+- assertVisible:
+    id: "${APP_ID}:id/floating_action_button"

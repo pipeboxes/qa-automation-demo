@@ -1,0 +1,21 @@
+# Node / Playwright
+node_modules/
+api/test-results/
+api/playwright-report/
+api/blob-report/
+api/playwright/.cache/
+
+# Maestro
+mobile/.env
+mobile/report/
+*.mp4
+*.png
+
+# k6
+performance/results/
+
+# Sistema / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,15 @@
+{
+  "name": "qa-automation-demo-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pruebas de API con Playwright contra JSONPlaceholder",
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --grep @smoke",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^20.14.0"
+  }
+}
